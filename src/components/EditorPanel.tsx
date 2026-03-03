@@ -2,6 +2,36 @@ import React from 'react';
 import { Wand2 } from 'lucide-react';
 import { handleSmartPaste } from '../lib/htmlToMarkdown';
 
+const DATA_IMAGE_TOKEN_REGEX = /!\[[^\]]*?\]\(data:image\/[^\)]+\)/g;
+
+interface TokenRange {
+    start: number;
+    end: number;
+}
+
+function findDataImageRange(text: string, position: number | null | undefined): TokenRange | null {
+    if (position == null || position < 0 || position > text.length) return null;
+    DATA_IMAGE_TOKEN_REGEX.lastIndex = 0;
+    let match: RegExpExecArray | null;
+    while ((match = DATA_IMAGE_TOKEN_REGEX.exec(text)) !== null) {
+        const start = match.index;
+        const end = start + match[0].length;
+        if (position >= start && position < end) {
+            return { start, end };
+        }
+    }
+    return null;
+}
+
+function normalizeBoundaryWhitespace(value: string, trimEnd: boolean): string {
+    const regex = trimEnd ? /\s+$/ : /^\s+/;
+    return value.replace(regex, (match) => {
+        if (match.includes('\n\n')) return '\n\n';
+        if (match.includes('\n')) return '\n';
+        return '';
+    });
+}
+
 interface EditorPanelProps {
     markdownInput: string;
     onInputChange: (value: string) => void;
@@ -15,6 +45,53 @@ export default function EditorPanel({ markdownInput, onInputChange, editorScroll
         handleSmartPaste(e, markdownInput, onInputChange);
     };
 
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+        if (e.key !== 'Backspace' && e.key !== 'Delete') return;
+
+        const textarea = e.currentTarget;
+        const { selectionStart, selectionEnd } = textarea;
+        const positions = new Set<number>([selectionStart, selectionEnd]);
+
+        if (selectionStart !== selectionEnd) {
+            positions.add(selectionStart + 1);
+            positions.add(selectionEnd - 1);
+        } else {
+            if (e.key === 'Backspace' && selectionStart > 0) {
+                positions.add(selectionStart - 1);
+            }
+            if (e.key === 'Delete') {
+                positions.add(selectionStart);
+            }
+        }
+
+        let targetRange: TokenRange | null = null;
+        for (const pos of positions) {
+            const range = findDataImageRange(markdownInput, pos);
+            if (range) {
+                targetRange = range;
+                break;
+            }
+        }
+
+        if (!targetRange) return;
+
+        e.preventDefault();
+        const before = normalizeBoundaryWhitespace(markdownInput.slice(0, targetRange.start), true);
+        const after = normalizeBoundaryWhitespace(markdownInput.slice(targetRange.end), false);
+        const nextValue = before + after;
+        onInputChange(nextValue);
+
+        const nextCursor = before.length;
+        const setCursor = () => {
+            textarea.selectionStart = textarea.selectionEnd = Math.min(nextCursor, nextValue.length);
+        };
+        if (typeof requestAnimationFrame !== 'undefined') {
+            requestAnimationFrame(setCursor);
+        } else {
+            setTimeout(setCursor, 0);
+        }
+    };
+
     return (
         <div className="border-r border-[#00000015] dark:border-[#ffffff15] flex flex-col relative z-30 bg-transparent flex-1 min-h-0">
             <textarea
@@ -23,6 +100,7 @@ export default function EditorPanel({ markdownInput, onInputChange, editorScroll
                 value={markdownInput}
                 onChange={(e) => onInputChange(e.target.value)}
                 onPaste={onPaste}
+                onKeyDown={handleKeyDown}
                 onScroll={scrollSyncEnabled ? onEditorScroll : undefined}
                 placeholder="在这里输入 Markdown 内容..."
                 spellCheck={false}
