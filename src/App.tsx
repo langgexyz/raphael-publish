@@ -21,7 +21,6 @@ type AppMode = 'article' | 'cover' | 'poster' | 'article-cards';
 export default function App() {
     const [appMode, setAppMode] = useState<AppMode>('article');
     const [themeMode, setThemeMode] = useState<'light' | 'dark'>('light');
-    const [markdownInput, setMarkdownInput] = useState<string>(defaultContent);
     const [renderedHtml, setRenderedHtml] = useState<string>('');
     const [activeTheme, setActiveTheme] = useState(THEMES[0].id);
     const [copied, setCopied] = useState(false);
@@ -30,17 +29,39 @@ export default function App() {
     const [activePanel, setActivePanel] = useState<'editor' | 'preview'>('editor');
     const [scrollSyncEnabled, setScrollSyncEnabled] = useState(true);
 
-    // 各编辑器内容状态（提升到 App 层，切换 mode 时不丢失）
+    // ── 草稿持久化 helpers ──
+    function loadDraft(key: string, fallback: string): string {
+        try { return localStorage.getItem(key) ?? fallback; } catch { return fallback; }
+    }
+    function saveDraft(key: string, value: string) {
+        try { localStorage.setItem(key, value); } catch { /* ignore */ }
+    }
+
+    // 各编辑器内容状态（提升到 App 层，切换 mode 时不丢失；localStorage 草稿，刷新不丢失）
     const coverFirst = coverThemes[0];
-    const [coverLeftMd, setCoverLeftMd] = useState(coverFirst.leftDefaultMd);
-    const [coverRightMd, setCoverRightMd] = useState(coverFirst.rightDefaultMd);
+    const [coverLeftMd, setCoverLeftMd] = useState(() => loadDraft('draft:cover:left', coverFirst.leftDefaultMd));
+    const [coverRightMd, setCoverRightMd] = useState(() => loadDraft('draft:cover:right', coverFirst.rightDefaultMd));
 
     const posterFirst = posterThemes[0];
-    const [posterMd, setPosterMd] = useState(`---\nwatermark: 公众号 · 浪哥闲谭\n---\n${posterFirst.defaultMd}`);
-
-    const [cardMd, setCardMd] = useState(
-        `---\ntitle: 每一次输出，都是一次练习\nwatermark: 公众号 · 浪哥闲谭\n---\n见字如面，我是浪哥。\n\n这是一篇关于写作的文章。写作不只是把想法变成文字，更是把模糊的感受打磨成清晰的观点。\n\n## 为什么要写\n\n很多人觉得自己没东西写。其实不是没有，是还没有养成把想法记下来的习惯。\n\n**写作是最便宜的思考工具。** 你只需要一个地方，开始打字。\n\n## 怎么写\n\n- 先把想说的都倒出来，不管顺序\n- 再整理，找主线\n- 然后删，删到不能再删为止\n\n> 好文章不是写出来的，是改出来的。\n\n## 写给谁看\n\n先写给自己看。当你能说服自己，才有可能说服别人。`
+    const [posterMd, setPosterMd] = useState(() =>
+        loadDraft('draft:poster', `---\nwatermark: 公众号 · 浪哥闲谭\n---\n${posterFirst.defaultMd}`)
     );
+
+    const [cardMd, setCardMd] = useState(() =>
+        loadDraft('draft:cards',
+            `---\ntitle: 每一次输出，都是一次练习\nwatermark: 公众号 · 浪哥闲谭\n---\n见字如面，我是浪哥。\n\n这是一篇关于写作的文章。写作不只是把想法变成文字，更是把模糊的感受打磨成清晰的观点。\n\n## 为什么要写\n\n很多人觉得自己没东西写。其实不是没有，是还没有养成把想法记下来的习惯。\n\n**写作是最便宜的思考工具。** 你只需要一个地方，开始打字。\n\n## 怎么写\n\n- 先把想说的都倒出来，不管顺序\n- 再整理，找主线\n- 然后删，删到不能再删为止\n\n> 好文章不是写出来的，是改出来的。\n\n## 写给谁看\n\n先写给自己看。当你能说服自己，才有可能说服别人。`
+        )
+    );
+
+    // 文章编辑器也持久化
+    const [markdownInput, setMarkdownInputRaw] = useState(() => loadDraft('draft:article', defaultContent));
+
+    // 包装 setter，自动写 localStorage
+    const setMarkdownInput = (v: string) => { setMarkdownInputRaw(v); saveDraft('draft:article', v); };
+    const setCoverLeftMdPersist = (v: string) => { setCoverLeftMd(v); saveDraft('draft:cover:left', v); };
+    const setCoverRightMdPersist = (v: string) => { setCoverRightMd(v); saveDraft('draft:cover:right', v); };
+    const setPosterMdPersist = (v: string) => { setPosterMd(v); saveDraft('draft:poster', v); };
+    const setCardMdPersist = (v: string) => { setCardMd(v); saveDraft('draft:cards', v); };
     const previewRef = useRef<HTMLDivElement>(null);
     const editorScrollRef = useRef<HTMLTextAreaElement>(null);
     const previewOuterScrollRef = useRef<HTMLDivElement>(null);
@@ -230,22 +251,22 @@ export default function App() {
                     <CoverEditor
                         leftMd={coverLeftMd}
                         rightMd={coverRightMd}
-                        onLeftChange={setCoverLeftMd}
-                        onRightChange={setCoverRightMd}
+                        onLeftChange={setCoverLeftMdPersist}
+                        onRightChange={setCoverRightMdPersist}
                     />
                 </main>
             ) : appMode === 'poster' ? (
                 <main className="flex-1 overflow-hidden">
                     <PosterEditor
                         posterMd={posterMd}
-                        onPosterMdChange={setPosterMd}
+                        onPosterMdChange={setPosterMdPersist}
                     />
                 </main>
             ) : appMode === 'article-cards' ? (
                 <main className="flex-1 overflow-hidden">
                     <ArticleCardsEditor
                         cardMd={cardMd}
-                        onCardMdChange={setCardMd}
+                        onCardMdChange={setCardMdPersist}
                     />
                 </main>
             ) : (

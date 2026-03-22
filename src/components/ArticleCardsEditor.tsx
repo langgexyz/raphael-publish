@@ -127,23 +127,19 @@ function ArticleCardPage({
     );
 }
 
-// ─── 主题组：展示一个主题的所有分页 ──────────────────────────────
-function ThemeCardGroup({
-    theme,
-    title,
-    pages,
-    footerText,
-}: {
+// ─── 单张卡片缩放预览（不含翻页，用于横排展示）────────────────────
+function CardPreview({ theme, title, pageBlocks, pageLabel, bottomTip, footerText }: {
     theme: CardTheme;
     title: string;
-    pages: string[][];
+    pageBlocks: string[];
+    pageLabel: string;
+    bottomTip: string;
     footerText: string;
 }) {
     const wrapperRef = useRef<HTMLDivElement>(null);
     const [scale, setScale] = useState(0.28);
-    const [saving, setSaving] = useState(false);
     const [hover, setHover] = useState(false);
-    const [previewPageIdx, setPreviewPageIdx] = useState(0);
+    const [saving, setSaving] = useState(false);
 
     useEffect(() => {
         const update = () => {
@@ -155,15 +151,75 @@ function ThemeCardGroup({
         return () => ro.disconnect();
     }, []);
 
+    const handleSave = useCallback(async () => {
+        setSaving(true);
+        const canvas = document.createElement('canvas');
+        await renderCard({ canvas, palette: theme.palette, title, blockHtmlArr: pageBlocks, pageLabel, footerText, bottomTip });
+        const a = document.createElement('a');
+        a.href = canvas.toDataURL('image/png');
+        a.download = `card-${theme.id}-${pageLabel.replace(' ', '')}.png`;
+        a.click();
+        setSaving(false);
+    }, [theme, title, pageBlocks, pageLabel, footerText, bottomTip]);
+
+    return (
+        <div
+            ref={wrapperRef}
+            className="relative flex-shrink-0"
+            style={{ width: '100%', aspectRatio: `${CARD_W}/${CARD_H}` }}
+            onMouseEnter={() => setHover(true)}
+            onMouseLeave={() => setHover(false)}
+        >
+            <style>{theme.css}</style>
+            <div style={{
+                transform: `scale(${scale})`, transformOrigin: 'top left',
+                width: CARD_W, height: CARD_H,
+                position: 'absolute', top: 0, left: 0,
+                borderRadius: 8 / scale, overflow: 'hidden',
+                boxShadow: `0 ${2 / scale}px ${16 / scale}px rgba(0,0,0,0.12)`,
+            }}>
+                <ArticleCardPage
+                    theme={theme} title={title}
+                    contentHtml={pageBlocks.join('')}
+                    pageLabel={pageLabel}
+                    bottomTip={bottomTip}
+                    footerText={footerText}
+                />
+            </div>
+            {hover && (
+                <button
+                    onClick={handleSave} disabled={saving}
+                    className="absolute bottom-3 right-3 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-semibold bg-black/70 text-white backdrop-blur-sm hover:bg-black/85 transition-all z-10"
+                >
+                    <Download size={12} />
+                    {saving ? '导出中...' : '保存'}
+                </button>
+            )}
+        </div>
+    );
+}
+
+// ─── 主题组：横排展示当前主题所有分页 ─────────────────────────────
+function ThemeCardGroup({
+    theme,
+    title,
+    pages,
+    footerText,
+}: {
+    theme: CardTheme;
+    title: string;
+    pages: string[][];
+    footerText: string;
+}) {
+    const [saving, setSaving] = useState(false);
+    const total = pages.length;
+
     const handleSaveAll = useCallback(async () => {
         setSaving(true);
-        const total = pages.length;
         for (let i = 0; i < total; i++) {
             const canvas = document.createElement('canvas');
             await renderCard({
-                canvas,
-                palette: theme.palette,
-                title,
+                canvas, palette: theme.palette, title,
                 blockHtmlArr: pages[i] ?? [],
                 pageLabel: `${i + 1} / ${total}`,
                 footerText,
@@ -176,75 +232,35 @@ function ThemeCardGroup({
             if (i < total - 1) await new Promise(r => setTimeout(r, 300));
         }
         setSaving(false);
-    }, [theme.id, theme.palette, title, footerText, pages]);
-
-    const total = pages.length;
-    const clampedIdx = Math.min(previewPageIdx, total - 1);
-
-    // pages 变化时重置预览页（防止越界）
-    useEffect(() => {
-        setPreviewPageIdx(0);
-    }, [total]);
+    }, [theme.id, theme.palette, title, footerText, pages, total]);
 
     return (
-        <div className="flex flex-col gap-1">
-            {/* 标签行 */}
+        <div className="flex flex-col gap-2">
+            {/* 操作行 */}
             <div className="flex items-center justify-between px-0.5">
-                <div className="flex items-center gap-1.5">
-                    <span className="text-[12px] font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">{theme.name}</span>
-                    <span className="text-[11px] text-[#86868b] truncate">{theme.description}</span>
-                </div>
-                {/* 翻页控件 */}
-                <div className="flex items-center gap-1">
-                    <button
-                        onClick={() => setPreviewPageIdx(i => Math.max(0, i - 1))}
-                        disabled={clampedIdx === 0}
-                        className="w-5 h-5 flex items-center justify-center rounded text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-[#f5f5f7] disabled:opacity-30 transition-colors"
-                    >‹</button>
-                    <span className="text-[11px] text-[#86868b] tabular-nums">{clampedIdx + 1} / {total}</span>
-                    <button
-                        onClick={() => setPreviewPageIdx(i => Math.min(total - 1, i + 1))}
-                        disabled={clampedIdx === total - 1}
-                        className="w-5 h-5 flex items-center justify-center rounded text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-[#f5f5f7] disabled:opacity-30 transition-colors"
-                    >›</button>
-                </div>
+                <span className="text-[11px] text-[#86868b]">共 {total} 张</span>
+                <button
+                    onClick={handleSaveAll} disabled={saving}
+                    className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold bg-[#1d1d1f] dark:bg-white text-white dark:text-[#1d1d1f] hover:opacity-80 transition-opacity disabled:opacity-50"
+                >
+                    <Download size={11} />
+                    {saving ? '导出中...' : `全部下载 ${total} 张`}
+                </button>
             </div>
 
-            {/* 缩放预览 */}
-            <div
-                ref={wrapperRef}
-                className="relative w-full"
-                style={{ aspectRatio: `${CARD_W}/${CARD_H}` }}
-                onMouseEnter={() => setHover(true)}
-                onMouseLeave={() => setHover(false)}
-            >
-                <style>{theme.css}</style>
-                <div style={{
-                    transform: `scale(${scale})`, transformOrigin: 'top left',
-                    width: CARD_W, height: CARD_H,
-                    position: 'absolute', top: 0, left: 0,
-                    borderRadius: 8 / scale, overflow: 'hidden',
-                    boxShadow: `0 ${2 / scale}px ${16 / scale}px rgba(0,0,0,0.12)`,
-                }}>
-                    <ArticleCardPage
-                        theme={theme} title={title}
-                        contentHtml={pages[clampedIdx]?.join('') ?? ''}
-                        pageLabel={`${clampedIdx + 1} / ${total}`}
-                        bottomTip={clampedIdx === total - 1 ? '· 全文完' : '← 滑动查看更多'}
+            {/* 所有分页横排（自动换行） */}
+            <div className="grid grid-cols-2 gap-3">
+                {pages.map((pageBlocks, i) => (
+                    <CardPreview
+                        key={i}
+                        theme={theme}
+                        title={title}
+                        pageBlocks={pageBlocks}
+                        pageLabel={`${i + 1} / ${total}`}
+                        bottomTip={i === total - 1 ? '· 全文完' : '← 滑动查看更多'}
                         footerText={footerText}
-                        hidePageLabel
                     />
-                </div>
-
-                {hover && (
-                    <button
-                        onClick={handleSaveAll} disabled={saving}
-                        className="absolute bottom-3 right-3 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-semibold bg-black/70 text-white backdrop-blur-sm hover:bg-black/85 transition-all z-10"
-                    >
-                        <Download size={12} />
-                        {saving ? '导出中...' : `全部 ${total} 张`}
-                    </button>
-                )}
+                ))}
             </div>
         </div>
     );
@@ -269,9 +285,11 @@ export default function ArticleCardsEditor({ cardMd, onCardMdChange }: {
     onCardMdChange: (v: string) => void;
 }) {
     const [pages, setPages] = useState<string[][]>([['']]);
+    const [activeThemeIdx, setActiveThemeIdx] = useState(0);
 
     const { title, watermark, body } = parseFrontmatter(cardMd);
     const measureRef = useRef<HTMLDivElement>(null);
+    const activeTheme = cardThemes[activeThemeIdx];
 
     // 每次内容变化重新分页
     useEffect(() => {
@@ -286,7 +304,7 @@ export default function ArticleCardsEditor({ cardMd, onCardMdChange }: {
             <div ref={measureRef} style={{ position: 'fixed', left: -99999, top: 0, pointerEvents: 'none', visibility: 'hidden' }} />
 
             <div className="grid grid-cols-3 gap-3 items-start">
-                {/* 编辑器：占 1 列，与大字报布局一致 */}
+                {/* 编辑器列 */}
                 <div className="flex flex-col gap-1">
                     <div className="flex items-center gap-1.5 px-0.5">
                         <span className="text-[12px] font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">编辑</span>
@@ -302,16 +320,34 @@ export default function ArticleCardsEditor({ cardMd, onCardMdChange }: {
                     </div>
                 </div>
 
-                {/* 主题卡片：从第 2 列开始，自然排列 */}
-                {cardThemes.map(theme => (
+                {/* 预览区：占 2 列，主题切换 + 当前主题所有分页横排 */}
+                <div className="col-span-2 flex flex-col gap-2">
+                    {/* 主题选择器 */}
+                    <div className="flex flex-wrap gap-1.5 px-0.5">
+                        {cardThemes.map((t, i) => (
+                            <button
+                                key={t.id}
+                                onClick={() => setActiveThemeIdx(i)}
+                                className={`px-2.5 py-1 rounded-full text-[11px] font-semibold transition-colors ${
+                                    i === activeThemeIdx
+                                        ? 'bg-[#1d1d1f] text-white dark:bg-white dark:text-[#1d1d1f]'
+                                        : 'bg-white dark:bg-[#2c2c2e] text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white border border-black/8 dark:border-white/10'
+                                }`}
+                            >
+                                {t.name}
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* 当前主题的所有分页横排 */}
                     <ThemeCardGroup
-                        key={theme.id}
-                        theme={theme}
+                        key={activeTheme.id}
+                        theme={activeTheme}
                         title={title}
                         pages={pages}
                         footerText={watermark}
                     />
-                ))}
+                </div>
             </div>
         </div>
     );
