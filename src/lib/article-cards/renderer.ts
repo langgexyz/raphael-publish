@@ -395,11 +395,18 @@ export async function renderCard(params: RenderCardParams): Promise<void> {
         avatarRightEdge = PX + avatarSz + 10 * SCALE;
     } catch { /* 跳过 */ }
 
-    ctx.font = fnt(20 * SCALE, 400);
+    // 水印文字（支持 **bold**）
+    const boldParts = `✦ ${footerText}`.split(/\*\*(.+?)\*\*/g);
+    let rx = avatarRightEdge;
     ctx.fillStyle = palette.meta;
     ctx.globalAlpha = 0.7;
     ctx.textBaseline = 'middle';
-    ctx.fillText(`✦ ${footerText}`, avatarRightEdge, footerMidY);
+    for (let bi = 0; bi < boldParts.length; bi++) {
+        if (!boldParts[bi]) continue;
+        ctx.font = fnt(20 * SCALE, bi % 2 === 1 ? 800 : 400);
+        ctx.fillText(boldParts[bi], rx, footerMidY);
+        rx += ctx.measureText(boldParts[bi]).width;
+    }
     ctx.globalAlpha = 1;
 
     ctx.font = fnt(19 * SCALE, 400);

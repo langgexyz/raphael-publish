@@ -57,11 +57,10 @@ function WatermarkOverlay({ footerText, scale }: { footerText: string; scale: nu
                 src="/avatar.jpg" alt=""
                 style={{ width: 36 * scale, height: 36 * scale, borderRadius: '50%', objectFit: 'cover' }}
             />
-            <span style={{
-                fontSize: 24 * scale,
-                letterSpacing: 1 * scale,
-                color: 'rgba(0,0,0,0.35)',
-            }}>✦ {footerText}</span>
+            <span
+                style={{ fontSize: 24 * scale, letterSpacing: 1 * scale, color: 'rgba(0,0,0,0.35)' }}
+                dangerouslySetInnerHTML={{ __html: '✦ ' + footerText.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>') }}
+            />
         </div>
     );
 }
@@ -144,11 +143,18 @@ function PosterCard({
             ctx.drawImage(avatarImg, wmX, wmY, 36, 36);
             ctx.restore();
 
-            // 画文字
+            // 画文字（支持 **bold**）
+            const WM_FONT = '"PingFang SC", "Noto Sans SC", sans-serif';
+            const boldParts = `✦ ${footerText}`.split(/\*\*(.+?)\*\*/g);
+            let rx = wmX + 46;
             ctx.fillStyle = 'rgba(0,0,0,0.35)';
-            ctx.font = '24px "PingFang SC", "Noto Sans SC", sans-serif';
             ctx.textBaseline = 'middle';
-            ctx.fillText(`✦ ${footerText}`, wmX + 46, wmY + 18);
+            for (let bi = 0; bi < boldParts.length; bi++) {
+                if (!boldParts[bi]) continue;
+                ctx.font = bi % 2 === 1 ? `bold 24px ${WM_FONT}` : `24px ${WM_FONT}`;
+                ctx.fillText(boldParts[bi], rx, wmY + 18);
+                rx += ctx.measureText(boldParts[bi]).width;
+            }
 
             // 3. 下载
             const a = document.createElement('a');

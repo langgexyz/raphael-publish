@@ -116,7 +116,10 @@ function ArticleCardPage({
             <div style={{ marginTop: 28, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
                 <div className="card-watermark" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <img src="/avatar.jpg" alt="" style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover' }} crossOrigin="anonymous" />
-                    <span style={{ fontSize: 20, letterSpacing: 1 }}>✦ {footerText}</span>
+                    <span
+                        style={{ fontSize: 20, letterSpacing: 1 }}
+                        dangerouslySetInnerHTML={{ __html: '✦ ' + footerText.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>') }}
+                    />
                 </div>
                 <span className="card-tip" style={{ fontSize: 19 }}>{bottomTip}</span>
             </div>
