@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Download } from 'lucide-react';
-import html2canvas from 'html2canvas';
 import MarkdownIt from 'markdown-it';
+import { renderCard } from '../lib/article-cards/renderer';
 import { cardThemes } from '../lib/article-cards/themes';
 import type { CardTheme } from '../lib/article-cards/types';
 import EditorPanel from './EditorPanel';
@@ -137,7 +137,6 @@ function ThemeCardGroup({
     footerText: string;
 }) {
     const wrapperRef = useRef<HTMLDivElement>(null);
-    const exportWrapperRef = useRef<HTMLDivElement>(null);
     const [scale, setScale] = useState(0.28);
     const [saving, setSaving] = useState(false);
     const [hover, setHover] = useState(false);
@@ -154,37 +153,19 @@ function ThemeCardGroup({
     }, []);
 
     const handleSaveAll = useCallback(async () => {
-        const ew = exportWrapperRef.current;
-        if (!ew) return;
         setSaving(true);
         const total = pages.length;
         for (let i = 0; i < total; i++) {
-            // 1. Clone 模板（含 CSS、结构），直接 DOM 更新各页内容
-            const clone = ew.cloneNode(true) as HTMLDivElement;
-            clone.style.cssText = `
-                position: fixed; left: 0; top: -${CARD_H + 200}px;
-                width: ${CARD_W}px; height: ${CARD_H}px;
-                overflow: hidden; z-index: 99999; pointer-events: none;
-            `;
-            const contentEl = clone.querySelector('.card-content') as HTMLElement | null;
-            if (contentEl) contentEl.innerHTML = pages[i]?.join('') ?? '';
-            const pageEl = clone.querySelector('.card-page') as HTMLElement | null;
-            if (pageEl) pageEl.textContent = `${i + 1} / ${total}`;
-            const tipEl = clone.querySelector('.card-tip') as HTMLElement | null;
-            if (tipEl) tipEl.textContent = i === total - 1 ? '· 全文完' : '← 滑动查看更多';
-
-            document.body.appendChild(clone);
-
-            // 2. 用 scrollY 技巧离屏截图（与大字报一致，无需移至视口）
-            const canvas = await html2canvas(clone, {
-                scale: 2, useCORS: true, backgroundColor: null,
-                width: CARD_W, height: CARD_H,
-                scrollX: 0, scrollY: CARD_H + 200,
-                logging: false,
+            const canvas = document.createElement('canvas');
+            await renderCard({
+                canvas,
+                palette: theme.palette,
+                title,
+                blockHtmlArr: pages[i] ?? [],
+                pageLabel: `${i + 1} / ${total}`,
+                footerText,
+                bottomTip: i === total - 1 ? '· 全文完' : '← 滑动查看更多',
             });
-
-            document.body.removeChild(clone);
-
             const a = document.createElement('a');
             a.href = canvas.toDataURL('image/png');
             a.download = `card-${theme.id}-p${i + 1}-of-${total}.png`;
@@ -192,7 +173,7 @@ function ThemeCardGroup({
             if (i < total - 1) await new Promise(r => setTimeout(r, 300));
         }
         setSaving(false);
-    }, [theme.id, pages]);
+    }, [theme.id, theme.palette, title, footerText, pages]);
 
     const total = pages.length;
     const clampedIdx = Math.min(previewPageIdx, total - 1);
@@ -204,25 +185,6 @@ function ThemeCardGroup({
 
     return (
         <div className="flex flex-col gap-1">
-            {/* 隐藏全尺寸导出模板（clone 基础，内容在导出时通过 DOM 逐页替换）*/}
-            <div
-                ref={exportWrapperRef}
-                style={{
-                    position: 'fixed', left: 0, top: -(CARD_H + 200),
-                    width: CARD_W, height: CARD_H,
-                    overflow: 'hidden', zIndex: 99999, pointerEvents: 'none',
-                }}
-            >
-                <style>{theme.css}</style>
-                <ArticleCardPage
-                    theme={theme} title={title}
-                    contentHtml={pages[0]?.join('') ?? ''}
-                    pageLabel={`1 / ${total}`}
-                    bottomTip={total === 1 ? '· 全文完' : '← 滑动查看更多'}
-                    footerText={footerText}
-                />
-            </div>
-
             {/* 标签行 */}
             <div className="flex items-center justify-between px-0.5">
                 <div className="flex items-center gap-1.5">
