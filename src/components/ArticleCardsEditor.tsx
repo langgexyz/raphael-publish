@@ -241,7 +241,7 @@ function ThemeCardGroup({
     return (
         <div className="flex flex-col gap-2">
             {/* 单行：主题 tabs + 共 N 张 + 下载按钮 */}
-            <div className="flex items-center gap-1.5 px-0.5">
+            <div className="flex items-center gap-1.5 px-0.5 h-[26px]">
                 {cardThemes.map((t, i) => (
                     <button
                         key={t.id}
@@ -324,7 +324,7 @@ export default function ArticleCardsEditor({ cardMd, onCardMdChange }: {
             <div className="grid grid-cols-3 gap-3 items-start">
                 {/* 编辑器列 */}
                 <div className="flex flex-col gap-1">
-                    <div className="flex items-center gap-1.5 px-0.5">
+                    <div className="flex items-center gap-1.5 px-0.5 h-[26px]">
                         <span className="text-[12px] font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">编辑</span>
                         <span className="text-[11px] text-[#86868b]">共 {pages.length} 页</span>
                     </div>
