@@ -23,15 +23,13 @@ function splitMarkdownPages(body: string): string[][] {
 
 // ─── 单张卡片 ─────────────────────────────────────────────────────
 function ArticleCardPage({
-    theme, title, contentHtml, pageLabel, bottomTip, footerText, hidePageLabel = false,
+    theme, title, contentHtml, pageLabel, footerText,
 }: {
     theme: CardTheme;
     title: string;
     contentHtml: string;
     pageLabel: string;
-    bottomTip: string;
     footerText: string;
-    hidePageLabel?: boolean;
 }) {
     return (
         <div
@@ -52,14 +50,6 @@ function ArticleCardPage({
                     style={{ flex: 1, fontSize: 26, fontWeight: 700, lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
                     dangerouslySetInnerHTML={{ __html: title.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>') }}
                 />
-                {!hidePageLabel && (
-                    <span
-                        className="card-page"
-                        style={{ fontSize: 22, letterSpacing: 1, flexShrink: 0 }}
-                    >
-                        {pageLabel}
-                    </span>
-                )}
             </div>
 
             {/* Divider */}
@@ -84,19 +74,18 @@ function ArticleCardPage({
                         dangerouslySetInnerHTML={{ __html: '✦ ' + footerText.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>') }}
                     />
                 </div>
-                <span className="card-tip" style={{ fontSize: 19 }}>{bottomTip}</span>
+                {pageLabel && <span className="card-page" style={{ fontSize: 22, letterSpacing: 1 }}>{pageLabel}</span>}
             </div>
         </div>
     );
 }
 
 // ─── 单张卡片缩放预览（不含翻页，用于横排展示）────────────────────
-function CardPreview({ theme, title, pageBlocks, pageLabel, bottomTip, footerText }: {
+function CardPreview({ theme, title, pageBlocks, pageLabel, footerText }: {
     theme: CardTheme;
     title: string;
     pageBlocks: string[];
     pageLabel: string;
-    bottomTip: string;
     footerText: string;
 }) {
     const wrapperRef = useRef<HTMLDivElement>(null);
@@ -117,13 +106,13 @@ function CardPreview({ theme, title, pageBlocks, pageLabel, bottomTip, footerTex
     const handleSave = useCallback(async () => {
         setSaving(true);
         const canvas = document.createElement('canvas');
-        await renderCard({ canvas, palette: theme.palette, title, blockHtmlArr: pageBlocks, pageLabel, footerText, bottomTip });
+        await renderCard({ canvas, palette: theme.palette, title, blockHtmlArr: pageBlocks, pageLabel, footerText });
         const a = document.createElement('a');
         a.href = canvas.toDataURL('image/png');
         a.download = `card-${theme.id}-${pageLabel.replace(' ', '')}.png`;
         a.click();
         setSaving(false);
-    }, [theme, title, pageBlocks, pageLabel, footerText, bottomTip]);
+    }, [theme, title, pageBlocks, pageLabel, footerText]);
 
     return (
         <div
@@ -145,7 +134,6 @@ function CardPreview({ theme, title, pageBlocks, pageLabel, bottomTip, footerTex
                     theme={theme} title={title}
                     contentHtml={pageBlocks.join('')}
                     pageLabel={pageLabel}
-                    bottomTip={bottomTip}
                     footerText={footerText}
                 />
             </div>
@@ -190,7 +178,6 @@ function ThemeCardGroup({
                 blockHtmlArr: pages[i] ?? [],
                 pageLabel: `${i + 1} / ${total}`,
                 footerText,
-                bottomTip: i === total - 1 ? '· 全文完' : '← 滑动查看更多',
             });
             const a = document.createElement('a');
             a.href = canvas.toDataURL('image/png');
@@ -238,7 +225,6 @@ function ThemeCardGroup({
                         title={title}
                         pageBlocks={pageBlocks}
                         pageLabel={`${i + 1} / ${total}`}
-                        bottomTip={i === total - 1 ? '· 全文完' : '← 滑动查看更多'}
                         footerText={footerText}
                     />
                 ))}

@@ -124,7 +124,7 @@ function calcRightHeight(blocks: Block[]): number {
         if (b.kind === 'h1' || b.kind === 'h2' || b.kind === 'p') {
             h += Math.ceil(56 * SCALE * 1.2);
         } else if (b.kind === 'hr') {
-            h += Math.ceil(36 * SCALE) + 4 * SCALE; // ↓ + margin
+            h += 20 * SCALE; // 行间距
         }
     }
     return h;
@@ -208,14 +208,7 @@ export function renderCover(params: RenderCoverParams): void {
             drawCenteredRuns(ctx, b.runs, rightCenterX, y, fs, palette.highlight, palette.highlight, 700);
             y += lineH;
         } else if (b.kind === 'hr') {
-            const fs = 36 * SCALE;
-            y += 2 * SCALE;
-            ctx.font = fnt(fs, 400);
-            ctx.fillStyle = palette.arrow;
-            ctx.textBaseline = 'top';
-            const arrowW = ctx.measureText('↓').width;
-            ctx.fillText('↓', rightCenterX - arrowW / 2, y);
-            y += fs + 2 * SCALE;
+            y += 20 * SCALE;
         }
     }
 }

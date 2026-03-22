@@ -20,7 +20,6 @@ export interface RenderCardParams {
     blockHtmlArr: string[];   // 当前页的 block outerHTML 数组
     pageLabel: string;        // e.g. "1 / 3"，空字符串则不显示
     footerText: string;
-    bottomTip: string;        // "· 全文完" | "← 滑动查看更多"
 }
 
 // ─── 字体辅助 ─────────────────────────────────────────────────────────────────
@@ -217,7 +216,7 @@ async function loadImg(src: string): Promise<HTMLImageElement> {
 // ─── 主渲染函数 ───────────────────────────────────────────────────────────────
 
 export async function renderCard(params: RenderCardParams): Promise<void> {
-    const { canvas, palette, title, blockHtmlArr, pageLabel, footerText, bottomTip } = params;
+    const { canvas, palette, title, blockHtmlArr, pageLabel, footerText } = params;
     canvas.width = W;
     canvas.height = H;
     const ctx = canvas.getContext('2d')!;
@@ -243,18 +242,8 @@ export async function renderCard(params: RenderCardParams): Promise<void> {
     ctx.textBaseline = 'middle';
     const headerMidY = y + logoSz / 2;
 
-    // 页码（右侧）
-    let pageLabelW = 0;
-    if (pageLabel) {
-        ctx.font = fnt(22 * SCALE, 400);
-        pageLabelW = ctx.measureText(pageLabel).width + 16 * SCALE;
-        ctx.globalAlpha = 0.6;
-        ctx.fillText(pageLabel, PX + CW - ctx.measureText(pageLabel).width, headerMidY);
-        ctx.globalAlpha = 1;
-    }
-
     // 标题（支持 **bold**，截断处理）
-    const maxTitleW = CW - logoW - pageLabelW;
+    const maxTitleW = CW - logoW;
     // 解析 bold 分段
     const titleParts = title.split(/\*\*(.+?)\*\*/g); // 偶数索引=普通，奇数索引=加粗
     // 先测量总宽度，超出则退回到纯文本截断模式
@@ -431,10 +420,12 @@ export async function renderCard(params: RenderCardParams): Promise<void> {
     }
     ctx.globalAlpha = 1;
 
-    ctx.font = fnt(19 * SCALE, 400);
-    ctx.fillStyle = palette.meta;
-    ctx.globalAlpha = 0.6;
-    const tipW = ctx.measureText(bottomTip).width;
-    ctx.fillText(bottomTip, PX + CW - tipW, footerMidY);
-    ctx.globalAlpha = 1;
+    if (pageLabel) {
+        ctx.font = fnt(22 * SCALE, 400);
+        ctx.fillStyle = palette.meta;
+        ctx.globalAlpha = 0.6;
+        const labelW = ctx.measureText(pageLabel).width;
+        ctx.fillText(pageLabel, PX + CW - labelW, footerMidY);
+        ctx.globalAlpha = 1;
+    }
 }

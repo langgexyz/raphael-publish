@@ -15,6 +15,7 @@ import PosterEditor from './components/PosterEditor';
 import ArticleCardsEditor from './components/ArticleCardsEditor';
 import { coverThemes } from './lib/covers/themes';
 import { posterThemes } from './lib/poster/themes';
+import { cardThemes } from './lib/article-cards/themes';
 
 type AppMode = 'article' | 'cover' | 'poster' | 'article-cards';
 
@@ -48,9 +49,7 @@ export default function App() {
     );
 
     const [cardMd, setCardMd] = useState(() =>
-        loadDraft('draft:cards',
-            `---\ntitle: 每一次输出，都是一次练习\nwatermark: 公众号 · 浪哥闲谭\n---\n见字如面，我是浪哥。\n\n这是一篇关于写作的文章。写作不只是把想法变成文字，更是把模糊的感受打磨成清晰的观点。\n\n## 为什么要写\n\n很多人觉得自己没东西写。其实不是没有，是还没有养成把想法记下来的习惯。\n\n**写作是最便宜的思考工具。** 你只需要一个地方，开始打字。\n\n## 怎么写\n\n- 先把想说的都倒出来，不管顺序\n- 再整理，找主线\n- 然后删，删到不能再删为止\n\n> 好文章不是写出来的，是改出来的。\n\n## 写给谁看\n\n先写给自己看。当你能说服自己，才有可能说服别人。`
-        )
+        loadDraft('draft:cards', cardThemes[0].defaultMd)
     );
 
     // 文章编辑器也持久化

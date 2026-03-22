@@ -5,6 +5,7 @@ export interface PosterPalette {
     bg: string;        // 背景色
     text: string;      // 正文色（h1 默认色）
     highlight: string; // 高亮色（strong 色）
+    watermark?: string; // 水印色，默认黑底
 }
 
 export function makePosterCss(id: string, p: PosterPalette): string {
@@ -33,6 +34,6 @@ export function makePosterCss(id: string, p: PosterPalette): string {
             margin-top: 8px;
         }
         ${s} .poster-text strong { color: ${p.highlight}; font-weight: 900; }
-        ${s} .poster-watermark { color: rgba(0,0,0,0.35); }
+        ${s} .poster-watermark { color: ${p.watermark ?? 'rgba(0,0,0,0.35)'}; }
     `;
 }

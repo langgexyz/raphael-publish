@@ -12,4 +12,5 @@ export interface CardTheme {
     description: string;
     css: string;          // scoped by [data-card="id"]
     palette: CardPalette;
+    defaultMd: string;
 }
