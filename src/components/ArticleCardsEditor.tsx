@@ -199,17 +199,21 @@ function CardPreview({ theme, title, pageBlocks, pageLabel, bottomTip, footerTex
     );
 }
 
-// ─── 主题组：横排展示当前主题所有分页 ─────────────────────────────
+// ─── 主题组：单行控制栏 + 横排展示当前主题所有分页 ────────────────
 function ThemeCardGroup({
     theme,
     title,
     pages,
     footerText,
+    activeThemeIdx,
+    onThemeChange,
 }: {
     theme: CardTheme;
     title: string;
     pages: string[][];
     footerText: string;
+    activeThemeIdx: number;
+    onThemeChange: (i: number) => void;
 }) {
     const [saving, setSaving] = useState(false);
     const total = pages.length;
@@ -236,12 +240,26 @@ function ThemeCardGroup({
 
     return (
         <div className="flex flex-col gap-2">
-            {/* 操作行 */}
-            <div className="flex items-center justify-between px-0.5">
-                <span className="text-[11px] text-[#86868b]">共 {total} 张</span>
+            {/* 单行：主题 tabs + 共 N 张 + 下载按钮 */}
+            <div className="flex items-center gap-1.5 px-0.5">
+                {cardThemes.map((t, i) => (
+                    <button
+                        key={t.id}
+                        onClick={() => onThemeChange(i)}
+                        className={`px-2.5 py-1 rounded-full text-[11px] font-semibold transition-colors flex-shrink-0 ${
+                            i === activeThemeIdx
+                                ? 'bg-[#1d1d1f] text-white dark:bg-white dark:text-[#1d1d1f]'
+                                : 'bg-white dark:bg-[#2c2c2e] text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white border border-black/[0.08] dark:border-white/10'
+                        }`}
+                    >
+                        {t.name}
+                    </button>
+                ))}
+                <span className="text-[11px] text-[#86868b] ml-2 flex-shrink-0">共 {total} 张</span>
+                <div className="flex-1" />
                 <button
                     onClick={handleSaveAll} disabled={saving}
-                    className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold bg-[#1d1d1f] dark:bg-white text-white dark:text-[#1d1d1f] hover:opacity-80 transition-opacity disabled:opacity-50"
+                    className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold bg-[#1d1d1f] dark:bg-white text-white dark:text-[#1d1d1f] hover:opacity-80 transition-opacity disabled:opacity-50 flex-shrink-0"
                 >
                     <Download size={11} />
                     {saving ? '导出中...' : `全部下载 ${total} 张`}
@@ -322,26 +340,11 @@ export default function ArticleCardsEditor({ cardMd, onCardMdChange }: {
 
                 {/* 预览区：占 2 列，主题切换 + 当前主题所有分页横排 */}
                 <div className="col-span-2 flex flex-col gap-2">
-                    {/* 主题选择器 */}
-                    <div className="flex flex-wrap gap-1.5 px-0.5">
-                        {cardThemes.map((t, i) => (
-                            <button
-                                key={t.id}
-                                onClick={() => setActiveThemeIdx(i)}
-                                className={`px-2.5 py-1 rounded-full text-[11px] font-semibold transition-colors ${
-                                    i === activeThemeIdx
-                                        ? 'bg-[#1d1d1f] text-white dark:bg-white dark:text-[#1d1d1f]'
-                                        : 'bg-white dark:bg-[#2c2c2e] text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white border border-black/8 dark:border-white/10'
-                                }`}
-                            >
-                                {t.name}
-                            </button>
-                        ))}
-                    </div>
-
-                    {/* 当前主题的所有分页横排 */}
+                    {/* 单行：主题 tabs + 共 N 张 + 下载按钮 */}
                     <ThemeCardGroup
                         key={activeTheme.id}
+                        activeThemeIdx={activeThemeIdx}
+                        onThemeChange={setActiveThemeIdx}
                         theme={activeTheme}
                         title={title}
                         pages={pages}
