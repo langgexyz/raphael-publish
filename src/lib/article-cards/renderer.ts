@@ -253,16 +253,38 @@ export async function renderCard(params: RenderCardParams): Promise<void> {
         ctx.globalAlpha = 1;
     }
 
-    // 标题（截断处理）
-    ctx.font = fnt(titleFontSz, 700);
+    // 标题（支持 **bold**，截断处理）
     const maxTitleW = CW - logoW - pageLabelW;
-    let displayTitle = title;
-    while (ctx.measureText(displayTitle).width > maxTitleW && displayTitle.length > 1) {
-        displayTitle = displayTitle.slice(0, -1);
+    // 解析 bold 分段
+    const titleParts = title.split(/\*\*(.+?)\*\*/g); // 偶数索引=普通，奇数索引=加粗
+    // 先测量总宽度，超出则退回到纯文本截断模式
+    let titleTotalW = 0;
+    for (let ti = 0; ti < titleParts.length; ti++) {
+        ctx.font = fnt(titleFontSz, ti % 2 === 1 ? 800 : 700);
+        titleTotalW += ctx.measureText(titleParts[ti]).width;
     }
-    if (displayTitle !== title) displayTitle = displayTitle.trimEnd() + '…';
     ctx.fillStyle = palette.meta;
-    ctx.fillText(displayTitle, PX + logoW, headerMidY);
+    ctx.textBaseline = 'middle';
+    if (titleTotalW <= maxTitleW) {
+        // 正常绘制各分段
+        let tx = PX + logoW;
+        for (let ti = 0; ti < titleParts.length; ti++) {
+            if (!titleParts[ti]) continue;
+            ctx.font = fnt(titleFontSz, ti % 2 === 1 ? 800 : 700);
+            ctx.fillText(titleParts[ti], tx, headerMidY);
+            tx += ctx.measureText(titleParts[ti]).width;
+        }
+    } else {
+        // 超宽：去掉 ** 标记，截断后加省略号
+        const plain = title.replace(/\*\*/g, '');
+        ctx.font = fnt(titleFontSz, 700);
+        let displayTitle = plain;
+        while (ctx.measureText(displayTitle).width > maxTitleW && displayTitle.length > 1) {
+            displayTitle = displayTitle.slice(0, -1);
+        }
+        if (displayTitle !== plain) displayTitle = displayTitle.trimEnd() + '…';
+        ctx.fillText(displayTitle, PX + logoW, headerMidY);
+    }
 
     y += logoSz + 32 * SCALE; // header bottom margin
 

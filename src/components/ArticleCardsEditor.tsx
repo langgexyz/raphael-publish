@@ -10,51 +10,15 @@ const md = new MarkdownIt({ html: false, breaks: true, linkify: false });
 
 const CARD_W = 900;
 const CARD_H = 1200;
-// 内容区可用高度（扣除 header + divider + footer + padding）
-const CONTENT_H = 870;
-// 内容区宽度（900 - 2*72 = 756）
-const CONTENT_W = 756;
 
-// ─── 页面分割 ─────────────────────────────────────────────────────
-// 将渲染后的 HTML 按照内容高度分页
-function splitHtmlIntoPages(html: string, measureRoot: HTMLElement): string[][] {
-    const probe = document.createElement('div');
-    probe.style.cssText = [
-        `width:${CONTENT_W}px`,
-        'font-size:30px',
-        'line-height:1.85',
-        `font-family:"PingFang SC","Noto Sans SC","Hiragino Sans GB",sans-serif`,
-        'position:absolute',
-        'left:-99999px',
-        'top:0',
-        'visibility:hidden',
-        'padding:0',
-        'margin:0',
-        'box-sizing:border-box',
-    ].join(';');
-    probe.innerHTML = html;
-    measureRoot.appendChild(probe);
-
-    const nodes = Array.from(probe.children) as HTMLElement[];
-    const pages: string[][] = [];
-    let curBlocks: string[] = [];
-    let curH = 0;
-
-    for (const el of nodes) {
-        const h = el.getBoundingClientRect().height || el.offsetHeight || 0;
-        if (curH + h > CONTENT_H && curBlocks.length > 0) {
-            pages.push(curBlocks);
-            curBlocks = [el.outerHTML];
-            curH = h;
-        } else {
-            curBlocks.push(el.outerHTML);
-            curH += h;
-        }
-    }
-    if (curBlocks.length > 0) pages.push(curBlocks);
-
-    measureRoot.removeChild(probe);
-    return pages.length > 0 ? pages : [['']];
+// ─── 页面分割（手动：正文中插入 <!-- page --> 来手动分页）──────────
+function splitMarkdownPages(body: string): string[][] {
+    return body.split(/<!--\s*page\s*-->/gi).map(section => {
+        const div = document.createElement('div');
+        div.innerHTML = md.render(section);
+        const blocks = Array.from(div.children).map(el => el.outerHTML);
+        return blocks.length > 0 ? blocks : [''];
+    });
 }
 
 // ─── 单张卡片 ─────────────────────────────────────────────────────
@@ -86,9 +50,8 @@ function ArticleCardPage({
                 <span
                     className="card-title"
                     style={{ flex: 1, fontSize: 26, fontWeight: 700, lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
-                >
-                    {title}
-                </span>
+                    dangerouslySetInnerHTML={{ __html: title.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>') }}
+                />
                 {!hidePageLabel && (
                     <span
                         className="card-page"
@@ -304,42 +267,124 @@ export default function ArticleCardsEditor({ cardMd, onCardMdChange }: {
 }) {
     const [pages, setPages] = useState<string[][]>([['']]);
     const [activeThemeIdx, setActiveThemeIdx] = useState(0);
+    const [pageBreakYs, setPageBreakYs] = useState<number[]>([]);
+    const [editorScrollTop, setEditorScrollTop] = useState(0);
 
     const { title, watermark, body } = parseFrontmatter(cardMd);
-    const measureRef = useRef<HTMLDivElement>(null);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
     const activeTheme = cardThemes[activeThemeIdx];
 
-    // 每次内容变化重新分页
+    // 内容变化时按 <!-- page --> 手动分页
     useEffect(() => {
-        if (!measureRef.current) return;
-        const html = md.render(body);
-        setPages(splitHtmlIntoPages(html, measureRef.current));
+        setPages(splitMarkdownPages(body));
     }, [body]);
 
-    return (
-        <div className="h-full overflow-y-auto p-4 bg-[#f5f5f7] dark:bg-[#1c1c1e]">
-            {/* 隐藏测量容器 */}
-            <div ref={measureRef} style={{ position: 'fixed', left: -99999, top: 0, pointerEvents: 'none', visibility: 'hidden' }} />
+    // 找出 <!-- page --> 在 textarea 中的像素 Y 位置，用于绘制分割线
+    useEffect(() => {
+        const textarea = textareaRef.current;
+        if (!textarea || pages.length <= 1) { setPageBreakYs([]); return; }
 
-            <div className="grid grid-cols-3 gap-3 items-stretch">
-                {/* 编辑器列：随右侧卡片区等高撑开 */}
-                <div className="flex flex-col gap-1">
+        const bodyStart = cardMd.indexOf(body);
+        if (bodyStart < 0) { setPageBreakYs([]); return; }
+
+        // 找 body 中所有 <!-- page --> 的结束位置（分割线显示在 marker 之后）
+        const markerRe = /<!--\s*page\s*-->/gi;
+        const charPositions: number[] = [];
+        let m: RegExpExecArray | null;
+        while ((m = markerRe.exec(body)) !== null) {
+            charPositions.push(bodyStart + m.index + m[0].length);
+        }
+        if (charPositions.length === 0) { setPageBreakYs([]); return; }
+
+        // 用镜像 div 测量字符位置对应的像素 Y
+        const style = window.getComputedStyle(textarea);
+        const mirror = document.createElement('div');
+        mirror.style.cssText = [
+            `width:${textarea.offsetWidth}px`,
+            `font-family:${style.fontFamily}`,
+            `font-size:${style.fontSize}`,
+            `line-height:${style.lineHeight}`,
+            `padding:${style.padding}`,
+            `box-sizing:border-box`,
+            `white-space:pre-wrap`,
+            `word-break:break-word`,
+            `overflow-wrap:break-word`,
+            `position:fixed`,
+            `top:-9999px`,
+            `left:-9999px`,
+            `visibility:hidden`,
+        ].join(';');
+        document.body.appendChild(mirror);
+
+        const ys: number[] = [];
+        for (const charPos of charPositions) {
+            mirror.textContent = '';
+            mirror.appendChild(document.createTextNode(cardMd.slice(0, charPos)));
+            const span = document.createElement('span');
+            span.textContent = '\u200b';
+            mirror.appendChild(span);
+            ys.push(span.offsetTop + span.offsetHeight);
+        }
+
+        document.body.removeChild(mirror);
+        setPageBreakYs(ys);
+    }, [cardMd, body, pages]);
+
+    return (
+        <div className="h-full flex flex-col p-4 bg-[#f5f5f7] dark:bg-[#1c1c1e]">
+            <div className="grid grid-cols-3 gap-3 flex-1 min-h-0">
+                {/* 编辑器列 */}
+                <div className="flex flex-col gap-1 min-h-0">
                     <div className="flex items-center gap-1.5 px-0.5 h-[26px]">
                         <span className="text-[12px] font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">编辑</span>
                         <span className="text-[11px] text-[#86868b]">共 {pages.length} 页</span>
                     </div>
-                    <div className="flex flex-col flex-1 overflow-hidden rounded-lg border border-black/5 dark:border-white/10 bg-white dark:bg-[#111] shadow-sm">
+                    <div className="relative flex flex-col flex-1 overflow-hidden rounded-lg border border-black/5 dark:border-white/10 bg-white dark:bg-[#111] shadow-sm">
                         <EditorPanel
                             markdownInput={cardMd}
                             onInputChange={onCardMdChange}
-                            placeholder={"---\ntitle: 文章标题\nwatermark: 公众号 · 浪哥闲谭\n---\n正文内容..."}
+                            editorScrollRef={textareaRef}
+                            onEditorScroll={() => setEditorScrollTop(textareaRef.current?.scrollTop ?? 0)}
+                            scrollSyncEnabled={true}
+                            placeholder={"---\ntitle: 文章标题\nwatermark: 公众号 · 浪哥闲谭\n---\n第一页内容...\n\n<!-- page -->\n\n第二页内容..."}
                             hideFooter
                         />
+                        {/* 页面分割线 overlay */}
+                        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'hidden', zIndex: 40 }}>
+                            {pageBreakYs.map((y, i) => (
+                                <div
+                                    key={i}
+                                    style={{
+                                        position: 'absolute',
+                                        top: y - editorScrollTop,
+                                        left: 0, right: 0,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: 6,
+                                        paddingLeft: 8,
+                                        paddingRight: 8,
+                                    }}
+                                >
+                                    <div style={{ flex: 1, borderTop: '1.5px dashed rgba(0,102,204,0.35)' }} />
+                                    <span style={{
+                                        fontSize: 10,
+                                        color: 'rgba(0,102,204,0.7)',
+                                        fontFamily: 'monospace',
+                                        background: 'rgba(0,102,204,0.08)',
+                                        padding: '1px 5px',
+                                        borderRadius: 4,
+                                        flexShrink: 0,
+                                        lineHeight: 1.6,
+                                    }}>第 {i + 2} 页</span>
+                                    <div style={{ width: 24, borderTop: '1.5px dashed rgba(0,102,204,0.35)' }} />
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 </div>
 
-                {/* 预览区：占 2 列，主题切换 + 当前主题所有分页横排 */}
-                <div className="col-span-2 flex flex-col gap-2">
+                {/* 预览区：占 2 列，独立滚动 */}
+                <div className="col-span-2 flex flex-col gap-2 min-h-0 overflow-y-auto">
                     {/* 单行：主题 tabs + 共 N 张 + 下载按钮 */}
                     <ThemeCardGroup
                         key={activeTheme.id}
