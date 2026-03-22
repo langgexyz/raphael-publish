@@ -267,68 +267,14 @@ export default function ArticleCardsEditor({ cardMd, onCardMdChange }: {
 }) {
     const [pages, setPages] = useState<string[][]>([['']]);
     const [activeThemeIdx, setActiveThemeIdx] = useState(0);
-    const [pageBreakYs, setPageBreakYs] = useState<number[]>([]);
-    const [editorScrollTop, setEditorScrollTop] = useState(0);
 
     const { title, watermark, body } = parseFrontmatter(cardMd);
-    const textareaRef = useRef<HTMLTextAreaElement>(null);
     const activeTheme = cardThemes[activeThemeIdx];
 
     // 内容变化时按 <!-- page --> 手动分页
     useEffect(() => {
         setPages(splitMarkdownPages(body));
     }, [body]);
-
-    // 找出 <!-- page --> 在 textarea 中的像素 Y 位置，用于绘制分割线
-    useEffect(() => {
-        const textarea = textareaRef.current;
-        if (!textarea || pages.length <= 1) { setPageBreakYs([]); return; }
-
-        const bodyStart = cardMd.indexOf(body);
-        if (bodyStart < 0) { setPageBreakYs([]); return; }
-
-        // 找 body 中所有 <!-- page --> 的结束位置（分割线显示在 marker 之后）
-        const markerRe = /<!--\s*page\s*-->/gi;
-        const charPositions: number[] = [];
-        let m: RegExpExecArray | null;
-        while ((m = markerRe.exec(body)) !== null) {
-            charPositions.push(bodyStart + m.index + m[0].length);
-        }
-        if (charPositions.length === 0) { setPageBreakYs([]); return; }
-
-        // 用镜像 div 测量字符位置对应的像素 Y
-        const style = window.getComputedStyle(textarea);
-        const mirror = document.createElement('div');
-        mirror.style.cssText = [
-            `width:${textarea.offsetWidth}px`,
-            `font-family:${style.fontFamily}`,
-            `font-size:${style.fontSize}`,
-            `line-height:${style.lineHeight}`,
-            `padding:${style.padding}`,
-            `box-sizing:border-box`,
-            `white-space:pre-wrap`,
-            `word-break:break-word`,
-            `overflow-wrap:break-word`,
-            `position:fixed`,
-            `top:-9999px`,
-            `left:-9999px`,
-            `visibility:hidden`,
-        ].join(';');
-        document.body.appendChild(mirror);
-
-        const ys: number[] = [];
-        for (const charPos of charPositions) {
-            mirror.textContent = '';
-            mirror.appendChild(document.createTextNode(cardMd.slice(0, charPos)));
-            const span = document.createElement('span');
-            span.textContent = '\u200b';
-            mirror.appendChild(span);
-            ys.push(span.offsetTop + span.offsetHeight);
-        }
-
-        document.body.removeChild(mirror);
-        setPageBreakYs(ys);
-    }, [cardMd, body, pages]);
 
     return (
         <div className="h-full flex flex-col p-4 bg-[#f5f5f7] dark:bg-[#1c1c1e]">
@@ -339,47 +285,13 @@ export default function ArticleCardsEditor({ cardMd, onCardMdChange }: {
                         <span className="text-[12px] font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">编辑</span>
                         <span className="text-[11px] text-[#86868b]">共 {pages.length} 页</span>
                     </div>
-                    <div className="relative flex flex-col flex-1 overflow-hidden rounded-lg border border-black/5 dark:border-white/10 bg-white dark:bg-[#111] shadow-sm">
+                    <div className="flex flex-col flex-1 overflow-hidden rounded-lg border border-black/5 dark:border-white/10 bg-white dark:bg-[#111] shadow-sm">
                         <EditorPanel
                             markdownInput={cardMd}
                             onInputChange={onCardMdChange}
-                            editorScrollRef={textareaRef}
-                            onEditorScroll={() => setEditorScrollTop(textareaRef.current?.scrollTop ?? 0)}
-                            scrollSyncEnabled={true}
                             placeholder={"---\ntitle: 文章标题\nwatermark: 公众号 · 浪哥闲谭\n---\n第一页内容...\n\n<!-- page -->\n\n第二页内容..."}
                             hideFooter
                         />
-                        {/* 页面分割线 overlay */}
-                        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'hidden', zIndex: 40 }}>
-                            {pageBreakYs.map((y, i) => (
-                                <div
-                                    key={i}
-                                    style={{
-                                        position: 'absolute',
-                                        top: y - editorScrollTop,
-                                        left: 0, right: 0,
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: 6,
-                                        paddingLeft: 8,
-                                        paddingRight: 8,
-                                    }}
-                                >
-                                    <div style={{ flex: 1, borderTop: '1.5px dashed rgba(0,102,204,0.35)' }} />
-                                    <span style={{
-                                        fontSize: 10,
-                                        color: 'rgba(0,102,204,0.7)',
-                                        fontFamily: 'monospace',
-                                        background: 'rgba(0,102,204,0.08)',
-                                        padding: '1px 5px',
-                                        borderRadius: 4,
-                                        flexShrink: 0,
-                                        lineHeight: 1.6,
-                                    }}>第 {i + 2} 页</span>
-                                    <div style={{ width: 24, borderTop: '1.5px dashed rgba(0,102,204,0.35)' }} />
-                                </div>
-                            ))}
-                        </div>
                     </div>
                 </div>
 
