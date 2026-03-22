@@ -321,14 +321,14 @@ export default function ArticleCardsEditor({ cardMd, onCardMdChange }: {
             {/* 隐藏测量容器 */}
             <div ref={measureRef} style={{ position: 'fixed', left: -99999, top: 0, pointerEvents: 'none', visibility: 'hidden' }} />
 
-            <div className="grid grid-cols-3 gap-3 items-start">
-                {/* 编辑器列 */}
+            <div className="grid grid-cols-3 gap-3 items-stretch">
+                {/* 编辑器列：随右侧卡片区等高撑开 */}
                 <div className="flex flex-col gap-1">
                     <div className="flex items-center gap-1.5 px-0.5 h-[26px]">
                         <span className="text-[12px] font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">编辑</span>
                         <span className="text-[11px] text-[#86868b]">共 {pages.length} 页</span>
                     </div>
-                    <div className="flex flex-col overflow-hidden rounded-lg border border-black/5 dark:border-white/10 bg-white dark:bg-[#111] shadow-sm" style={{ aspectRatio: `${CARD_W}/${CARD_H}` }}>
+                    <div className="flex flex-col flex-1 overflow-hidden rounded-lg border border-black/5 dark:border-white/10 bg-white dark:bg-[#111] shadow-sm">
                         <EditorPanel
                             markdownInput={cardMd}
                             onInputChange={onCardMdChange}
