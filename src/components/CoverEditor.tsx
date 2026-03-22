@@ -107,11 +107,12 @@ function CoverCard({ theme, leftHtml, rightHtml }: {
     );
 }
 
-export default function CoverEditor() {
-    const firstTheme = coverThemes[0];
-    const [leftMd, setLeftMd] = useState(firstTheme.leftDefaultMd);
-    const [rightMd, setRightMd] = useState(firstTheme.rightDefaultMd);
-
+export default function CoverEditor({ leftMd, rightMd, onLeftChange, onRightChange }: {
+    leftMd: string;
+    rightMd: string;
+    onLeftChange: (v: string) => void;
+    onRightChange: (v: string) => void;
+}) {
     const leftHtml = md.render(leftMd);
     const rightHtml = md.render(rightMd);
 
@@ -124,7 +125,7 @@ export default function CoverEditor() {
                     <div className="flex flex-col overflow-hidden border-r border-black/5 dark:border-white/10" style={{ flex: 2.35 }}>
                         <EditorPanel
                             markdownInput={leftMd}
-                            onInputChange={setLeftMd}
+                            onInputChange={onLeftChange}
                             label="左 · 2.35:1"
                             placeholder={"# 标题\n# **高亮词**\n### 解决方案"}
                             hideFooter
@@ -134,7 +135,7 @@ export default function CoverEditor() {
                     <div className="flex flex-col overflow-hidden" style={{ flex: 1 }}>
                         <EditorPanel
                             markdownInput={rightMd}
-                            onInputChange={setRightMd}
+                            onInputChange={onRightChange}
                             label="右 · 1:1"
                             placeholder={"# 词\n\n---\n\n# 词"}
                             hideFooter

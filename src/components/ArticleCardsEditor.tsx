@@ -261,10 +261,10 @@ function parseFrontmatter(raw: string): { title: string; watermark: string; body
 }
 
 // ─── 编辑器主体 ────────────────────────────────────────────────────
-export default function ArticleCardsEditor() {
-    const [cardMd, setCardMd] = useState(
-        `---\ntitle: 每一次输出，都是一次练习\nwatermark: 公众号 · 浪哥闲谭\n---\n见字如面，我是浪哥。\n\n这是一篇关于写作的文章。写作不只是把想法变成文字，更是把模糊的感受打磨成清晰的观点。\n\n## 为什么要写\n\n很多人觉得自己没东西写。其实不是没有，是还没有养成把想法记下来的习惯。\n\n**写作是最便宜的思考工具。** 你只需要一个地方，开始打字。\n\n## 怎么写\n\n- 先把想说的都倒出来，不管顺序\n- 再整理，找主线\n- 然后删，删到不能再删为止\n\n> 好文章不是写出来的，是改出来的。\n\n## 写给谁看\n\n先写给自己看。当你能说服自己，才有可能说服别人。`
-    );
+export default function ArticleCardsEditor({ cardMd, onCardMdChange }: {
+    cardMd: string;
+    onCardMdChange: (v: string) => void;
+}) {
     const [pages, setPages] = useState<string[][]>([['']]);
 
     const { title, watermark, body } = parseFrontmatter(cardMd);
@@ -292,7 +292,7 @@ export default function ArticleCardsEditor() {
                     <div className="flex flex-col overflow-hidden rounded-lg border border-black/5 dark:border-white/10 bg-white dark:bg-[#111] shadow-sm" style={{ aspectRatio: `${CARD_W}/${CARD_H}` }}>
                         <EditorPanel
                             markdownInput={cardMd}
-                            onInputChange={setCardMd}
+                            onInputChange={onCardMdChange}
                             placeholder={"---\ntitle: 文章标题\nwatermark: 公众号 · 浪哥闲谭\n---\n正文内容..."}
                             hideFooter
                         />
